@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Projeto Acadêmico - Subestação Automatizada</title>
+    <style>
+        :root { --primary: #00f2ff; --bg: #0a0b10; --panel: rgba(16, 18, 27, 0.95); }
+        body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; }
+        #ui-panel { position: absolute; top: 20px; left: 20px; width: 350px; background: var(--panel); border: 1px solid rgba(0, 242, 255, 0.3); border-radius: 12px; padding: 20px; color: white; box-shadow: 0 8px 32px rgba(0,0,0,0.5); z-index: 100; pointer-events: none; }
+        h1 { font-size: 14px; color: var(--primary); text-transform: uppercase; margin: 0 0 15px 0; letter-spacing: 2px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .metric { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+        .label { color: #888; } .value { font-family: 'Courier New', monospace; font-weight: bold; }
+        .battery-container { width: 100%; height: 20px; background: #222; border-radius: 4px; overflow: hidden; margin: 10px 0; border: 1px solid #444; }
+        #battery-level { width: 15%; height: 100%; background: linear-gradient(90deg, #ff3300, #00f2ff); transition: width 0.3s; }
+        #main-status { text-align: center; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px; margin-top: 15px; font-weight: bold; text-transform: uppercase; font-size: 12px; color: #ffaa00; }
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; }
+        button { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 12px 30px; border-radius: 30px; cursor: pointer; font-weight: bold; transition: all 0.3s; text-transform: uppercase; font-size: 12px; }
+        button:hover { background: var(--primary); color: #000; box-shadow: 0 0 20px var(--primary); }
+        button:disabled { border-color: #444; color: #444; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1>Sistema de Monitoramento</h1>
+        <div class="metric"><span class="label">Processador Central:</span><span class="value">Ativo (v2.4)</span></div>
+        <div class="metric"><span class="label">Sensor Ultrassônico:</span><span id="dist-val" class="value">5.00 m</span></div>
+        <div class="metric"><span class="label">Atuador Mecânico:</span><span id="act-val" class="value">Recuado</span></div>
+        <div class="metric"><span class="label">Acoplamento Magnético:</span><span id="mag-val" class="value">OFF</span></div>
+        
+        <div style="margin-top: 20px;">
+            <div class="metric"><span class="label">Carga da Bateria (BYD):</span><span id="bat-perc" class="value">15%</span></div>
+            <div class="battery-container"><div id="battery-level"></div></div>
+            <div class="metric"><span class="label">Tempo Restante:</span><span id="time-val" class="value">-- min</span></div>
+        </div>
+        <div id="main-status">Aguardando Aproximação</div>
+    </div>
+
+    <div id="controls">
+        <button id="start-btn" onclick="iniciar()">Iniciar Aproximação</button>
+        <button onclick="window.location.reload()">Resetar Sistema</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        // --- CONFIGURAÇÃO DA CENA ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050608);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(6, 4, 8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.outputEncoding = THREE.sRGBEncoding; 
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // Iluminação
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        scene.add(new THREE.GridHelper(30, 30, 0x00f2ff, 0x222));
+
+        // --- CARREGAMENTO DO CARRO (COM BACKUP AUTOMÁTICO) ---
+        const carGroup = new THREE.Group();
+        let modeloCarregado = false;
+
+        const gltfLoader = new THREE.GLTFLoader();
+        
+        gltfLoader.load('scene.gltf', 
+            function (gltf) {
+                console.log("Sucesso: Arquivo GLTF do BYD carregado!");
+                const carroReal = gltf.scene;
+                
+                const box = new THREE.Box3().setFromObject(carroReal);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                
+                carroReal.position.x += (carroReal.position.x - center.x);
+                carroReal.position.y += (carroReal.position.y - center.y);
+                carroReal.position.z += (carroReal.position.z - center.z);
+                
+                const escalaDesejada = 3.2 / size.z;
+                carroReal.scale.set(escalaDesejada, escalaDesejada, escalaDesejada);
+                
+                carGroup.add(carroReal);
+                modeloCarregado = true;
+            }, 
+            undefined, 
+            function (error) {
+                console.warn("Usando veículo de simulação padrão (scene.gltf não encontrado ou com erro).");
+                
+                // Caixa de backup se o arquivo falhar
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 3.2), new THREE.MeshStandardMaterial({ color: 0x4ea1d3, metalness: 0.7, roughness: 0.2 }));
+                body.position.y = 0.4;
+                const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 1.8), new THREE.MeshStandardMaterial({ color: 0x111111, transparent: true, opacity: 0.6 }));
+                cabin.position.set(0, 0.9, -0.2);
+                
+                carGroup.add(body, cabin);
+                modeloCarregado = true;
+            }
+        );
+
+        carGroup.position.set(0, 0.2, 6);
+        scene.add(carGroup);
+
+        // --- SUBESTAÇÃO TOTEM ---
+        const stationGroup = new THREE.Group();
+        stationGroup.position.set(0, 0, -2);
+
+        const totem = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.8, 0.8), new THREE.MeshStandardMaterial({color: 0x1a1c24}));
+        totem.position.y = 1.4;
+        stationGroup.add(totem);
+
+        const ledRed = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), new THREE.MeshStandardMaterial({color: 0xff0000, emissive: 0xff0000}));
+        ledRed.position.set(-0.4, 2.4, 0.41);
+        stationGroup.add(ledRed);
+
+        const ledGreen = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), new THREE.MeshStandardMaterial({color: 0x003300}));
+        ledGreen.position.set(0.4, 2.4, 0.41);
+        stationGroup.add(ledGreen);
+
+        // Atuador Mecânico
+        const actuatorBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.5), new THREE.MeshStandardMaterial({color: 0x333}));
+        actuatorBase.position.set(0, 0.6, 0.4); 
+        stationGroup.add(actuatorBase);
+
+        const movableArm = new THREE.Group();
+        const piston = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 16), new THREE.MeshStandardMaterial({color: 0x888, metalness: 0.9}));
+        piston.rotation.x = Math.PI/2; piston.position.z = 0.4;
+        const conectorMacho = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.06, 32), new THREE.MeshStandardMaterial({color: 0x111111}));
+        conectorMacho.rotation.x = Math.PI / 2; conectorMacho.position.z = 0.8;
+        movableArm.add(piston, conectorMacho);
+        movableArm.position.set(0, 0.6, 0.4);
+        stationGroup.add(movableArm);
+        scene.add(stationGroup);
+
+        // --- MÁQUINA DE ESTADOS ---
+        let state = "IDLE"; let distance = 5.0; let battery = 15;
+        const uiDist = document.getElementById('dist-val'); const uiAct = document.getElementById('act-val');
+        const uiMag = document.getElementById('mag-val'); const uiStat = document.getElementById('main-status');
+        const uiBatTxt = document.getElementById('bat-perc'); const uiBatBar = document.getElementById('battery-level');
+        const uiTime = document.getElementById('time-val');
+
+        function iniciar() { state = "REVERSING"; document.getElementById('start-btn').disabled = true; }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            if (modeloCarregado) {
+                distance = carGroup.position.z - 1.6 - (-1.59);
+                if (distance < 0) distance = 0;
+                uiDist.innerText = distance.toFixed(2) + " m";
+                uiBatTxt.innerText = Math.floor(battery) + "%";
+                uiBatBar.style.width = battery + "%";
+
+                switch (state) {
+                    case "REVERSING":
+                        if (distance > 0.45) {
+                            carGroup.position.z -= 0.04;
+                            uiStat.innerText = "Veículo em Movimento (Ré)";
+                        } else { state = "PARKED"; }
+                        break;
+                    case "PARKED":
+                        uiStat.innerText = "Estacionado. Ativando Atuador...";
+                        uiAct.innerText = "Avançando...";
+                        let zAlvoBocal = (carGroup.position.z - 1.6) - (-2) - 0.4;
+                        if (movableArm.position.z < zAlvoBocal - 0.3) {
+                            movableArm.position.z += 0.02;
+                        } else { state = "COUPLING"; }
+                        break;
+                    case "COUPLING":
+                        movableArm.position.z = (carGroup.position.z - 1.6) + 2 - 0.45;
+                        uiMag.innerText = "CONECTADO"; uiMag.style.color = "#00ff88";
+                        uiAct.innerText = "Acoplado";
+                        ledRed.material.emissive.setHex(0x000000);
+                        ledGreen.material.emissive.setHex(0x00ff00);
+                        state = "CHARGING";
+                        break;
+                    case "CHARGING":
+                        uiStat.innerText = "Transferência Ativa"; uiStat.style.color = "#00ff88";
+                        if (battery < 100) {
+                            battery += 0.06;
+                            uiTime.innerText = Math.ceil((100 - battery) * 0.4) + " min";
+                        } else { uiStat.innerText = "Carga Completa"; uiTime.innerText = "0 min"; }
+                        break;
+                }
+            }
+            renderer.render(scene, camera);
+        }
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        animate();
+    </script>
+</body>
+</html>

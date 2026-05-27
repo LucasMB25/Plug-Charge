@@ -1,0 +1,136 @@
+* {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #e2e8f0; /* Fundo claro para o dia */
+            color: #1e293b;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Painel Lateral de Monitoramento (Mantido escuro para contraste profissional) */
+        #painel-monitoramento {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            color: #f8fafc;
+        }
+
+        #painel-monitoramento h2 {
+            font-size: 1.1rem;
+            color: #00e5ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid rgba(0, 229, 255, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .telemetria-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .telemetria-table td {
+            padding: 8px 0;
+            font-size: 0.9rem;
+        }
+
+        .telemetria-table td:first-child {
+            color: #9ca3af;
+        }
+
+        .telemetria-table td:last-child {
+            text-align: right;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .bateria-container {
+            margin-top: 5px;
+            background: #334155;
+            border-radius: 4px;
+            height: 12px;
+            width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .bateria-barra {
+            height: 100%;
+            width: 15%;
+            background: linear-gradient(90deg, #f97316, #22c55e);
+            transition: width 0.5s ease;
+        }
+
+        #status-geral {
+            text-align: center;
+            color: #eab308;
+            font-weight: bold;
+            font-size: 0.95rem;
+            margin-top: 15px;
+            letter-spacing: 0.5px;
+        }
+
+        #controles-simulacao {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .btn {
+            background: #0f172a;
+            color: #00e5ff;
+            border: 1px solid #00e5ff;
+            padding: 12px 24px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            background: #00e5ff;
+            color: #0f172a;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-reset {
+            color: #ef4444;
+            border-color: #ef4444;
+        }
+
+        .btn-reset:hover {
+            background: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
